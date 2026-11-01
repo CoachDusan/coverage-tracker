@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Coverage">
+<title>Coverage Tracker</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #f2f2f4; color: #111;
+    display: flex; flex-direction: column;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: #fff; border-bottom: 1px solid #d0d0d6;
+  }
+  header input {
+    font-size: 20px; font-weight: 600; padding: 6px 10px;
+    border: 1px solid #d0d0d6; border-radius: 8px; background: #fafafa;
+    user-select: text; -webkit-user-select: text;
+  }
+  #opp { flex: 1; min-width: 0; }
+  #date { width: 150px; }
+  header button {
+    font-size: 18px; padding: 10px 16px; border-radius: 10px;
+    border: 1px solid #c4c4cc; background: #fff;
+  }
+  header button.on { background: #111; color: #fff; border-color: #111; }
+  #undo:disabled { opacity: .35; }
+
+  main {
+    flex: 1; min-height: 0; padding: 8px;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: 8px;
+  }
+  .block {
+    background: #fff; border: 1px solid #d0d0d6; border-radius: 10px;
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .row {
+    display: grid; grid-template-columns: 1fr 50px 50px 54px 62px;
+    flex: 1; min-height: 34px; border-top: 1px solid #e4e4e8; align-items: stretch;
+  }
+  .row.head { border-top: 0; background: #e6e6ea; flex: 0 0 auto; min-height: 40px; }
+  .row.head .title { color: #c8352b; font-weight: 700; font-size: 19px; }
+  .row.head .col { font-size: 12px; color: #555; justify-content: center; display: flex; align-items: center; }
+  .label { padding: 0 8px; display: flex; align-items: center; font-size: 16px; font-weight: 600; min-width: 0; }
+  .label input {
+    width: 100%; font: inherit; border: 1px solid #c4c4cc; border-radius: 6px;
+    padding: 2px 6px; background: #fff; user-select: text; -webkit-user-select: text;
+  }
+  .title input { font-size: 20px; font-weight: 700; color: #c8352b; }
+  .cell {
+    border: 0; border-left: 1px solid #e4e4e8; background: #fff;
+    font-size: 22px; font-weight: 600; padding: 0;
+  }
+  .cell:active { background: #cfe5ff; }
+  body.edit .cell { background: #fff4f2; color: #c8352b; }
+  body.edit .cell:active { background: #ffd6d0; }
+  .ppp {
+    display: flex; align-items: center; justify-content: center;
+    border-left: 1px solid #e4e4e8; font-size: 17px; font-weight: 700; background: #f7f7f9;
+  }
+  .ppp.small { color: #999; font-weight: 500; font-style: italic; }
+  .row.total { background: #eef0f6; flex: 0 0 auto; min-height: 40px; }
+  .row.total .label { color: #1f4f9c; }
+  .row.total .cell { background: #eef0f6; pointer-events: none; }
+  .edit-tools { display: flex; gap: 8px; padding: 6px 8px; border-top: 1px solid #e4e4e8; }
+  .edit-tools button { font-size: 16px; padding: 6px 12px; border-radius: 8px; border: 1px solid #c4c4cc; background: #fff; }
+  .del { margin-left: 6px; border: 0; background: #ffd6d0; color: #c8352b; border-radius: 6px; width: 30px; height: 30px; font-size: 18px; flex: 0 0 auto; }
+
+  footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 16px; background: #ffe96b; font-size: 22px; font-weight: 700;
+  }
+  footer span.note { font-size: 14px; font-weight: 500; color: #6b5a00; }
+
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    display: none; align-items: center; justify-content: center;
+  }
+  #overlay.show { display: flex; }
+  #panel { background: #fff; border-radius: 14px; width: 520px; max-width: 92vw; max-height: 80vh; overflow: auto; padding: 16px; }
+  #panel h2 { margin: 0 0 10px; font-size: 22px; }
+  .game {
+    display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 10px;
+    border: 1px solid #d0d0d6; margin-bottom: 8px; font-size: 18px;
+  }
+  .game.cur { border-color: #111; background: #f0f0f4; }
+  .game .info { flex: 1; }
+  .game small { color: #777; display: block; }
+  .game button, #panel > button {
+    font-size: 17px; padding: 8px 14px; border-radius: 8px; border: 1px solid #c4c4cc; background: #fff;
+  }
+</style>
+</head>
+<body>
+<header>
+  <button id="games">Games</button>
+  <input id="opp" placeholder="Opponent">
+  <input id="date" type="date">
+  <button id="undo">Undo</button>
+  <button id="edit">Edit</button>
+</header>
+<main id="main"></main>
+<footer><span>TOTAL</span><span id="gtotal"></span></footer>
+<div id="overlay"><div id="panel"></div></div>
+
+<script>
+const KEY = 'coverage-tracker-v2';
+const uid = () => Math.random().toString(36).slice(2, 9);
+const FIELDS = ['used', 'sf', 'pts'];
+// PPP from very few possessions is noise, so it is shown greyed out until this many.
+const MIN_POSS = 5;
+
+const DEFAULT_BLOCKS = [
+  { name: 'Weak',   rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out', 'Pass in', 'PnP'] },
+  { name: 'Show',   rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out', 'Pass in', 'PnP'] },
+  { name: 'Switch', rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out', 'Pass in', 'PnP'] },
+  { name: 'ISO',            rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out'] },
+  { name: 'Post Up',        rows: ['Post up shot', 'Kick out', 'Pass out'] },
+];
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+function makeGame(template) {
+  return {
+    id: uid(), opponent: '', date: today(), history: [],
+    blocks: template.map(b => ({
+      id: uid(), name: b.name,
+      rows: b.rows.map(r => ({ id: uid(), name: typeof r === 'string' ? r : r.name, used: 0, sf: 0, pts: 0 })),
+    })),
+  };
+}
+
+let state = JSON.parse(localStorage.getItem(KEY) || 'null');
+if (!state) { const g = makeGame(DEFAULT_BLOCKS); state = { games: [g], currentId: g.id }; }
+let edit = false;
+
+const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+const game = () => state.games.find(g => g.id === state.currentId);
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const ppp = (pts, used) => used ? (pts / used).toFixed(2).replace('.', ',') : '–';
+const sum = (rows, f) => rows.reduce((a, r) => a + r[f], 0);
+
+function pppCell(pts, used) {
+  return `<div class="ppp ${used < MIN_POSS ? 'small' : ''}">${ppp(pts, used)}</div>`;
+}
+
+function render() {
+  const g = game();
+  document.body.classList.toggle('edit', edit);
+  $('edit').classList.toggle('on', edit);
+  $('edit').textContent = edit ? 'Done' : 'Edit';
+  $('undo').disabled = !g.history.length || edit;
+  $('opp').value = g.opponent;
+  $('date').value = g.date;
+
+  $('main').innerHTML = g.blocks.map(b => {
+    const rows = b.rows.map(r => `
+      <div class="row">
+        <div class="label">${edit
+          ? `<input data-name="row" data-b="${b.id}" data-r="${r.id}" value="${esc(r.name)}"><button class="del" data-del="${b.id}|${r.id}">×</button>`
+          : esc(r.name)}</div>
+        ${FIELDS.map(f => `<button class="cell" data-b="${b.id}" data-r="${r.id}" data-f="${f}">${r[f]}</button>`).join('')}
+        ${pppCell(r.pts, r.used)}
+      </div>`).join('');
+    const u = sum(b.rows, 'used'), s = sum(b.rows, 'sf'), p = sum(b.rows, 'pts');
+    return `<section class="block">
+      <div class="row head">
+        <div class="label title">${edit ? `<input data-name="block" data-b="${b.id}" value="${esc(b.name)}">` : esc(b.name)}</div>
+        <div class="col">Used</div><div class="col">SF</div><div class="col">Points</div><div class="col">PPP</div>
+      </div>
+      ${rows}
+      <div class="row total"><div class="label">Total</div>
+        <button class="cell">${u}</button><button class="cell">${s}</button><button class="cell">${p}</button>${pppCell(p, u)}
+      </div>
+      ${edit ? `<div class="edit-tools"><button data-add="${b.id}">+ Add row</button></div>` : ''}
+    </section>`;
+  }).join('');
+
+  const all = g.blocks.flatMap(b => b.rows);
+  const U = sum(all, 'used'), S = sum(all, 'sf'), P = sum(all, 'pts');
+  $('gtotal').innerHTML = `Used ${U} &nbsp; SF ${S} &nbsp; Points ${P} &nbsp; PPP ${ppp(P, U)}` +
+    (U && U < MIN_POSS ? ` &nbsp;<span class="note">(small sample)</span>` : '');
+}
+
+$('main').addEventListener('click', e => {
+  const g = game();
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.add) {
+    g.blocks.find(b => b.id === t.dataset.add).rows.push({ id: uid(), name: 'New row', used: 0, sf: 0, pts: 0 });
+  } else if (t.dataset.del) {
+    const [bid, rid] = t.dataset.del.split('|');
+    const b = g.blocks.find(b => b.id === bid);
+    if (!confirm('Delete this row and its numbers?')) return;
+    b.rows = b.rows.filter(r => r.id !== rid);
+    g.history = g.history.filter(h => h[1] !== rid);
+  } else if (t.dataset.f) {
+    const r = g.blocks.find(b => b.id === t.dataset.b).rows.find(r => r.id === t.dataset.r);
+    const f = t.dataset.f;
+    if (edit) r[f] = Math.max(0, r[f] - 1);        // in Edit mode a tap takes one away
+    else { r[f]++; g.history.push([t.dataset.b, t.dataset.r, f]); }
+  } else return;
+  save(); render();
+});
+
+// Renaming: saved on "change" (not every keystroke) so the keyboard/Scribble isn't interrupted.
+$('main').addEventListener('change', e => {
+  const i = e.target, g = game();
+  if (!i.dataset.name) return;
+  const b = g.blocks.find(b => b.id === i.dataset.b);
+  if (i.dataset.name === 'block') b.name = i.value;
+  else b.rows.find(r => r.id === i.dataset.r).name = i.value;
+  save();
+});
+
+$('undo').onclick = () => {
+  const g = game(), h = g.history.pop();
+  if (!h) return;
+  const b = g.blocks.find(b => b.id === h[0]), r = b && b.rows.find(r => r.id === h[1]);
+  if (r && r[h[2]] > 0) r[h[2]]--;
+  save(); render();
+};
+$('edit').onclick = () => { edit = !edit; render(); };
+$('opp').onchange = e => { game().opponent = e.target.value; save(); };
+$('date').onchange = e => { game().date = e.target.value; save(); };
+
+function showGames() {
+  const rows = state.games.slice().reverse().map(g => `
+    <div class="game ${g.id === state.currentId ? 'cur' : ''}">
+      <div class="info">${esc(g.opponent || 'No opponent name')}<small>${esc(g.date)}</small></div>
+      <button data-open="${g.id}">Open</button>
+      <button data-rm="${g.id}">Delete</button>
+    </div>`).join('');
+  $('panel').innerHTML = `<h2>Games</h2>${rows}<button data-new="1">+ New game (same layout, zeros)</button> <button data-close="1">Close</button>`;
+  $('overlay').classList.add('show');
+}
+$('games').onclick = showGames;
+$('panel').addEventListener('click', e => {
+  const d = e.target.dataset;
+  if (d.close) return $('overlay').classList.remove('show');
+  if (d.open) { state.currentId = d.open; edit = false; save(); render(); return $('overlay').classList.remove('show'); }
+  if (d.new) {
+    const g = makeGame(game().blocks);          // keep the (edited) layout, start from zero
+    state.games.push(g); state.currentId = g.id; edit = false; save(); render();
+    return $('overlay').classList.remove('show');
+  }
+  if (d.rm) {
+    if (!confirm('Delete this game and all its numbers?')) return;
+    state.games = state.games.filter(g => g.id !== d.rm);
+    if (!state.games.length) state.games.push(makeGame(DEFAULT_BLOCKS));
+    if (!game()) state.currentId = state.games[state.games.length - 1].id;
+    save(); render(); showGames();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
