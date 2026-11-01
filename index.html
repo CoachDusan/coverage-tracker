@@ -99,7 +99,10 @@
   .game.cur { border-color: #111; background: #f0f0f4; }
   .game .info { flex: 1; }
   .game small { color: #777; display: block; }
-  .game button, #panel > button {
+  #panel .big { display: block; width: 100%; margin: 8px 0; font-size: 19px; padding: 14px; text-align: left; }
+  #panel .big small { display: block; font-size: 14px; color: #777; margin-top: 2px; }
+  #panel textarea { width: 100%; height: 220px; font: 15px/1.4 ui-monospace, Menlo, monospace; user-select: text; -webkit-user-select: text; }
+  .game button, #panel > button, #panel .big {
     font-size: 17px; padding: 8px 14px; border-radius: 8px; border: 1px solid #c4c4cc; background: #fff;
   }
 </style>
@@ -109,6 +112,7 @@
   <button id="games">Games</button>
   <input id="opp" placeholder="Opponent">
   <input id="date" type="date">
+  <button id="export">Export</button>
   <button id="undo">Undo</button>
   <button id="edit">Edit</button>
 </header>
@@ -252,6 +256,14 @@ $('games').onclick = showGames;
 $('panel').addEventListener('click', e => {
   const d = e.target.dataset;
   if (d.close) return $('overlay').classList.remove('show');
+  if (d.exp) {
+    const g = game();
+    if (d.exp === 'csv') return shareOrSave(new File([csvText(g)], fileName(g, 'csv'), { type: 'text/csv' }));
+    if (d.exp === 'img') return imageCanvas(g).toBlob(b => shareOrSave(new File([b], fileName(g, 'png'), { type: 'image/png' })), 'image/png');
+    const t = summaryText(g);
+    return (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject())
+      .then(() => showExport(t, 'Copied. Paste it anywhere.'), () => showExport(t, 'Select the text below and copy it.'));
+  }
   if (d.open) { state.currentId = d.open; edit = false; save(); render(); return $('overlay').classList.remove('show'); }
   if (d.new) {
     const g = makeGame(game().blocks);          // keep the (edited) layout, start from zero
@@ -266,6 +278,112 @@ $('panel').addEventListener('click', e => {
     save(); render(); showGames();
   }
 });
+
+
+// ---------- Export ----------
+const fileName = (g, ext) =>
+  ((g.opponent || 'game').trim().replace(/[^\w\-]+/g, '_') + '_' + g.date + '.' + ext);
+
+function csvText(g) {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const pp = (p, u) => u ? (p / u).toFixed(2) : '';          // dot decimal so spreadsheets read it as a number
+  const out = [['Game', 'Date', 'Block', 'Row', 'Used', 'SF', 'Points', 'PPP'].join(',')];
+  let U = 0, S = 0, P = 0;
+  g.blocks.forEach(b => {
+    b.rows.forEach(r => out.push([q(g.opponent), g.date, q(b.name), q(r.name), r.used, r.sf, r.pts, pp(r.pts, r.used)].join(',')));
+    const u = sum(b.rows, 'used'), sf = sum(b.rows, 'sf'), p = sum(b.rows, 'pts');
+    out.push([q(g.opponent), g.date, q(b.name), q('Total'), u, sf, p, pp(p, u)].join(','));
+    U += u; S += sf; P += p;
+  });
+  out.push([q(g.opponent), g.date, q('ALL'), q('TOTAL'), U, S, P, pp(P, U)].join(','));
+  return '﻿' + out.join('\r\n');                          // BOM so accents survive in Excel
+}
+
+function summaryText(g) {
+  const line = (name, rows) => {
+    const u = sum(rows, 'used'), sf = sum(rows, 'sf'), p = sum(rows, 'pts');
+    return `${name}: Used ${u} | SF ${sf} | Pts ${p} | PPP ${ppp(p, u)}${u && u < MIN_POSS ? ' (small sample)' : ''}`;
+  };
+  const out = [`${g.opponent || 'Game'} – ${g.date}`, ''];
+  g.blocks.forEach(b => {
+    out.push(line(b.name, b.rows));
+    b.rows.filter(r => r.used || r.sf || r.pts)
+      .forEach(r => out.push(`   ${r.name}: ${r.used} / ${r.sf} SF / ${r.pts} pts (${ppp(r.pts, r.used)})`));
+    out.push('');
+  });
+  out.push(line('TOTAL', g.blocks.flatMap(b => b.rows)));
+  return out.join('\n');
+}
+
+function imageCanvas(g) {
+  const W = 1800, H = 1100, M = 20, G = 20, TOP = 90, FOOT = 80;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const font = (w, px) => x.font = `${w} ${px}px -apple-system, Helvetica, Arial, sans-serif`;
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#111'; font(700, 40); x.textBaseline = 'middle'; x.textAlign = 'left';
+  x.fillText(`${g.opponent || 'Game'} · ${g.date}`, M, TOP / 2);
+
+  const bw = (W - 2 * M - 2 * G) / 3, bh = (H - TOP - FOOT - M - G) / 2;
+  const cols = [bw - 330, 80, 70, 90, 90];        // label, Used, SF, Points, PPP
+  const heads = ['', 'Used', 'SF', 'Points', 'PPP'];
+
+  const rowAt = (bx, y, h, cells, opt = {}) => {
+    if (opt.bg) { x.fillStyle = opt.bg; x.fillRect(bx, y, bw, h); }
+    let cx = bx;
+    cells.forEach((t, i) => {
+      x.fillStyle = opt.color && i === 0 ? opt.color : (opt.dim && i === 4 ? '#999' : '#111');
+      font(i === 0 || opt.bold ? 700 : 500, opt.px || 26);
+      if (i === 0) { x.textAlign = 'left'; x.fillText(t, cx + 12, y + h / 2); }
+      else { x.textAlign = 'center'; x.fillText(t, cx + cols[i] / 2, y + h / 2); }
+      cx += cols[i];
+    });
+    x.fillStyle = '#e4e4e8'; x.fillRect(bx, y + h - 1, bw, 1);
+  };
+
+  g.blocks.forEach((b, i) => {
+    const bx = M + (i % 3) * (bw + G), by = TOP + Math.floor(i / 3) * (bh + G);
+    x.strokeStyle = '#d0d0d6'; x.lineWidth = 2; x.strokeRect(bx, by, bw, bh);
+    rowAt(bx, by, 52, [b.name, ...heads.slice(1)], { bg: '#e6e6ea', color: '#c8352b', px: 22, bold: true });
+    const rh = Math.min(50, (bh - 52 - 50) / Math.max(1, b.rows.length));
+    b.rows.forEach((r, j) => rowAt(bx, by + 52 + j * rh, rh,
+      [r.name, r.used, r.sf, r.pts, ppp(r.pts, r.used)], { dim: r.used < MIN_POSS }));
+    const u = sum(b.rows, 'used'), sf = sum(b.rows, 'sf'), p = sum(b.rows, 'pts');
+    rowAt(bx, by + 52 + b.rows.length * rh, 50, ['Total', u, sf, p, ppp(p, u)], { bg: '#eef0f6', color: '#1f4f9c', bold: true, dim: u < MIN_POSS });
+  });
+
+  const all = g.blocks.flatMap(b => b.rows);
+  const U = sum(all, 'used'), S = sum(all, 'sf'), P = sum(all, 'pts');
+  x.fillStyle = '#ffe96b'; x.fillRect(M, H - FOOT - 10, W - 2 * M, FOOT);
+  x.fillStyle = '#111'; font(700, 34); x.textAlign = 'left';
+  x.fillText('TOTAL', M + 20, H - FOOT / 2 - 10);
+  x.textAlign = 'right';
+  x.fillText(`Used ${U}    SF ${S}    Points ${P}    PPP ${ppp(P, U)}${U && U < MIN_POSS ? '  (small sample)' : ''}`, W - M - 20, H - FOOT / 2 - 10);
+  return c;
+}
+
+// iPad: opens the share sheet (Save to Files, AirDrop, Mail, Messages...). Elsewhere: downloads.
+async function shareOrSave(file) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); return; }
+    catch (err) { if (err.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function showExport(text, msg) {
+  $('panel').innerHTML = `<h2>Export this game</h2>
+    <button class="big" data-exp="csv">Spreadsheet (CSV)<small>Opens in Numbers / Excel</small></button>
+    <button class="big" data-exp="img">Picture of the table<small>PNG image to send or save</small></button>
+    <button class="big" data-exp="txt">Text summary<small>Copied so you can paste it into a message</small></button>
+    ${text ? `<p>${msg}</p><textarea readonly>${esc(text)}</textarea>` : ''}
+    <button data-close="1">Close</button>`;
+  $('overlay').classList.add('show');
+  const ta = $('panel').querySelector('textarea'); if (ta) ta.select();
+}
+$('export').onclick = () => showExport();
 
 render();
 

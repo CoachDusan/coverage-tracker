@@ -14,7 +14,11 @@ Single-file HTML app ([index.html](index.html)) for an iPad + Apple Pencil. Dusa
 
 ## Known limits / next
 - localStorage is per-browser-per-address: it must always be opened from the same place on the iPad. Needs hosting (e.g. GitHub Pages) + "Add to Home Screen" to be reliable; opening a loose file from Files is not.
-- No export yet.
+
+## Export (Export button, per game)
+- **CSV** (one line per row + block totals + grand total; PPP with a dot decimal so spreadsheets read it as a number; UTF-8 BOM for Excel), **PNG picture** drawn on a canvas (not a screenshot, so it stays crisp), and **text summary** (copied to clipboard, only rows with data).
+- On iPad it opens the share sheet (Files, AirDrop, Mail, Messages); elsewhere it downloads. Logic lives in the "Export" section of index.html.
+- Not verified on a real iPad share sheet or in Numbers with a Serbian/Russian locale (decimal separator).
 
 ## Offline + icon
 - `sw.js` (service worker) saves the app files on the iPad and serves them with no signal; when online it refreshes them in the background, so an update appears on the *next* open. Bump `CACHE` in sw.js only if the file list changes.
