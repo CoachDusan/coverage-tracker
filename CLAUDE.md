@@ -8,7 +8,7 @@ Single-file HTML app ([index.html](index.html)) for an iPad + Apple Pencil. Dusa
 - **SF = shooting foul; free-throw points count in Points**, so PPP = Points / Used stays honest.
 - **Undo** reverses the last tap. **Edit mode**: rename blocks/rows (Scribble works in the text fields), add/delete rows, and tap a number to take 1 off (fixes older mistakes).
 - **PPP is greyed out under 5 possessions** (`MIN_POSS`) and the footer says "small sample" — 1 possession = "2,00 PPP" means nothing and shouldn't be read as a tendency.
-- **Blocks:** three PnR coverages (Weak, Show, Switch) + ISO + Post Up on one screen, 3 columns x 2 rows like the original sheet (sixth slot empty). Row names are still placeholders from the sheet.
+- **Blocks:** three PnR coverages (Weak, Show, Switch) + ISO + Post Up on one screen, 3 columns x 2 rows like the original sheet plus a sixth block "Transition & Misc & Off Screens" (rows from the original sheet), filling the grid. Games saved earlier get that block added once on load (`addedTransition`), numbers untouched. Row names are still placeholders from the sheet.
 - **Games history** kept; "New game" copies the current (edited) layout with zeros.
 - Data lives in the iPad's `localStorage` (key `coverage-tracker-v2` (bumped from v1 when blocks went 4 -> 5; old v1 data was test taps only)). No server, works offline.
 

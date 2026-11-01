@@ -49,7 +49,7 @@
   }
   .row {
     display: grid; grid-template-columns: 1fr 50px 50px 54px 62px;
-    flex: 1; min-height: 34px; border-top: 1px solid #e4e4e8; align-items: stretch;
+    flex: 1; min-height: 30px; border-top: 1px solid #e4e4e8; align-items: stretch;
   }
   .row.head { border-top: 0; background: #e6e6ea; flex: 0 0 auto; min-height: 40px; }
   .row.head .title { color: #c8352b; font-weight: 700; font-size: 19px; }
@@ -133,6 +133,8 @@ const DEFAULT_BLOCKS = [
   { name: 'Switch', rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out', 'Pass in', 'PnP'] },
   { name: 'ISO',            rows: ['Pull up', 'Drive', 'Drive & Kick', 'Pass out'] },
   { name: 'Post Up',        rows: ['Post up shot', 'Kick out', 'Pass out'] },
+  { name: 'Transition & Misc & Off Screens',
+    rows: ['Secondary', 'Drive & Kick', 'Direct mismatch in', 'Direct mismatch out', '2nd chance', 'Bonus fouls', 'Off screen shot', 'Off screen pass'] },
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -149,6 +151,15 @@ function makeGame(template) {
 
 let state = JSON.parse(localStorage.getItem(KEY) || 'null');
 if (!state) { const g = makeGame(DEFAULT_BLOCKS); state = { games: [g], currentId: g.id }; }
+
+// Games saved before the sixth block existed get it added once (their numbers are untouched).
+if (!state.addedTransition) {
+  state.games.forEach(g => {
+    if (g.blocks.length === 5) g.blocks.push(makeGame(DEFAULT_BLOCKS.slice(5)).blocks[0]);
+  });
+  state.addedTransition = true;
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
 let edit = false;
 
 const save = () => localStorage.setItem(KEY, JSON.stringify(state));
