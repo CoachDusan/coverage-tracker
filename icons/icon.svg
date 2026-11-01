@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2a4a"/><stop offset="1" stop-color="#0d1526"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- court: free-throw circle and baseline -->
+  <circle cx="256" cy="455" r="150" fill="none" stroke="#e8732a" stroke-width="10" opacity=".55"/>
+  <line x1="40" y1="455" x2="472" y2="455" stroke="#e8732a" stroke-width="10" stroke-linecap="round" opacity=".85"/>
+  <!-- defender in stance: knees bent, arms wide and active -->
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="30">
+    <path d="M256 215 L256 310"/>
+    <path d="M256 238 L150 268 L108 205"/>
+    <path d="M256 238 L362 268 L404 205"/>
+    <path d="M256 310 L170 372 L140 445"/>
+    <path d="M256 310 L342 372 L372 445"/>
+  </g>
+  <circle cx="256" cy="165" r="32" fill="#fff"/>
+</svg>
